@@ -1,0 +1,51 @@
+recipe_version: "1"
+model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4
+runtime: vllm-ray
+container: 
+min_nodes: 2
+
+metadata:
+  description: DeepSeek-V4-Flash
+
+defaults:
+  served_model_name: nemotron-3-super
+  port: 8000
+  host: 0.0.0.0
+  dtype: auto
+  tensor_parallel: 1
+  pipeline_parallel: 2
+  data_parallel: 1
+  gpu_memory_utilization: 0.9
+  distributed_backend: ray
+  max_num_seqs: 8
+  max_model_len: 1000000
+  mamba_ssm_cache: float32
+  reasoning_parser: super_v3
+  tool_call_parser: qwen3_coder
+  quantization: modelopt
+
+env:
+  RAY_memory_monitor_refresh_ms: "0"
+  VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
+  VLLM_USE_RAY_COMPILED_DAG: "0"
+
+# --attention_config.use_fp4_indexer_cache=True \
+command: |
+  vllm serve {model} \
+    --served-model-name {served_model_name} \
+    --port {port} \
+    --dtype {dtype} \
+    --tensor-parallel-size {tensor_parallel} \
+    --pipeline-parallel-size {pipeline_parallel} \
+    --data-parallel-size {data_parallel} \
+    --distributed-executor-backend {distributed_backend} \
+    --trust-remote-code \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --enable-chunked-prefill \
+    --max-num-seqs {max_num_seqs} \
+    --max-model-len {max_model_len} \
+    --mamba_ssm_cache_dtype {mamba_ssm_cache} \
+    --quantization {quantization} \
+    --reasoning-parser {reasoning_parser} \
+    --enable-auto-tool-choice \
+    --tool-call-parser {tool_call_parser}
