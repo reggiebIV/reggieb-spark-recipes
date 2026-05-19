@@ -1,48 +1,46 @@
-# Recipe: Nemotron-3-Super-NVFP4
-# Uses VLLM_CUTLASS for NVFP4
+# Recipe: Deepseek-V4-Flash
+# uses Marlin-DeepGEMM fallback on the last layer. This fixes a numerical error on Marlin
 recipe_version: "1"
-name: Nemotron-3-Super-NVFP4-CUTLASS-Optimized
-description: vLLM serving Nemotron-3-Super-120B using CUTLASS kernels
+name: Deepseek-V4-Flash
+description: vLLM serving Deepseek V4 Flash
 
-model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4
-container: vllm-node
-cluster_only: false
-solo_only: false
+# HuggingFace model to download (optional, for --download-model)
+model: deepseek-ai/DeepSeek-V4-Flash
+
+# Container image to use
+container: lmxxf/vllm-deepseek-v4-dgx-spark
+
+# Cluster only
+cluster_only: true
 
 # mods: 
 #   - mods/nemotron-super
 
 env:
-  VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
-  VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
+  TRANSFORMERS_OFFLINE: 1
+  VLLM_MXFP4_MARLIN_DEEPGEMM_LAYERS: 42
 
-container: vllm-node
 defaults:
   port: 8000
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.8
-  max_model_len: 1000000
+  max_model_len: 262144
   max_num_seqs: 10
 
 command: |
-  vllm serve nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 \
-  --served-model-name nemotron-3-super \
+  vllm serve deepseek-ai/DeepSeek-V4-Flash \
+  --served-model-name deepseek-v4-flash \
   --kv-cache-dtype fp8 \
-  --moe-backend cutlass \
-  --trust-remote-code \
+  --moe-backend marlin \
   --gpu-memory-utilization {gpu_memory_utilization} \
   --max-model-len {max_model_len} \
   --max-num-seqs {max_num_seqs} \
-  --enable-prefix-caching \
   --host {host} \
   --port {port} \
-  --enable-auto-tool-choice \
-  --load-format fastsafetensors \
-  --tool-call-parser qwen3_coder \
-  --reasoning-parser nemotron_v3 \
-  --mamba_ssm_cache_dtype float32 \
+  --tool-call-parser deepseek_v4 \
   --tensor-parallel-size {tensor_parallel} \
-  --attention-backend TRITON_ATTN \
   --distributed-executor-backend ray \
-    > /tmp/vllm-serve.log 2>&1
+  --enforce-eager \
+  --enable-auto-tool-choice \
+  > /tmp/vllm-serve.log 2>&1
